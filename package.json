@@ -1,6 +1,6 @@
 {
   "name": "homeworks",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Place for dab homeworks",
   "main": "index.js",
   "scripts": {
