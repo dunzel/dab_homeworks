@@ -1,64 +1,84 @@
 const net = require('net');
-const fs = require('fs');
-let counter = 0;
-
-fs.readFile('cache_counter.tmp', (err, data) => {
-    if (!err) counter = parseInt(data);
-});
+let localeLanguage = null;
+let charset = null;
+let startCollecting = false;
+let listToSort = [];
+let sortedList = [];
 
 net.createServer((serverSocket) => {
 
     serverSocket.on('data', (data) => {
 
         let lines = data.toString().split('\r\n');
-        lines.forEach((line) => console.log(line));
+        if (lines[0].search(/POST\s\/\s/i) !== -1)
+        {
+            lines.forEach((line) => {
 
-        /*=== Response Start ===*/
-        //Show Counter
-        if (lines[0].search(/GET\s\/\s/i) !== -1)
-        {
-            returnCounter(serverSocket, counter);
+                if ($match = /Accept-Language: ([^,]*)/i.exec(line)) {
+                    localeLanguage = $match[1];
+                }
+
+                if ($match = /Content-Type:.*charset=(.*)/i.exec(line)) {
+                    charset = $match[1];
+                }
+
+                if (localeLanguage !== null && line === '' && startCollecting === false) {
+                    startCollecting = true;
+                }
+
+                if (startCollecting) {
+                    let items = line.toString(charset).split(/\r|\n/);
+                    items.forEach((item) => item !== '' && listToSort.push(item));
+                }
+            });
         }
-        //count up and show counter
-        else if (lines[0].search(/GET\s\/visit/i) !== -1)
-        {
-            counter = setCounter(counter+1);
-            returnCounter(serverSocket, counter);
+
+        if (listToSort.length > 0) {
+            sortedList = bubbleSortLocale(listToSort);
+
+            /*=== Response Start ===*/
+            responseHeader(serverSocket, "200 OK");
+            sortedList.forEach((item) => serverSocket.write(item + '\r\n'));
         }
-        //set new value and show counter
-        else if ($match = /POST\s\/(\d*)/i.exec(lines[0])) {
-            counter = setCounter($match[1]);
-            returnCounter(serverSocket, counter);
-        }
-        //route not found
         else
         {
             responseHeader(serverSocket, "404 Not Found");
-            serverSocket.write('Error 404');
+            serverSocket.write('Please set an locale and send not an empty body')
         }
 
         /*=== Response End ===*/
         serverSocket.end();
+        localeLanguage = null;
+        charset = null;
+        startCollecting = false;
+        listToSort = [];
+        sortedList = [];
 
     });
 
 }).listen(8000);
-
-function setCounter($c)
-{
-    fs.writeFile('cache_counter.tmp', $c);
-    return parseInt($c);
-}
-
-function returnCounter (socket, counter)
-{
-    responseHeader (socket, "200 OK");
-    socket.write(`Counter: ${counter}`);
-}
 
 function responseHeader (socket, status)
 {
     socket.write(`HTTP/1.1 ${status}\r\n`);
     socket.write('Content-Type: text/html; charset=utf-8\r\n');
     socket.write('\r\n');
+}
+
+function bubbleSortLocale(array, locales) {
+    let bubbled;
+    do {
+        bubbled = false;
+        for (let index=0; index < array.length-1; index++)
+        {
+            if (array[index].localeCompare(array[index+1], "de-DE") > 0) {
+                let cache = array[index];
+                array[index] = array[index+1];
+                array[index+1] = cache;
+                bubbled = true;
+            }
+        }
+    } while (bubbled);
+
+    return array;
 }
