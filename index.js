@@ -71,7 +71,7 @@ function bubbleSortLocale(array, locales) {
         bubbled = false;
         for (let index=0; index < array.length-1; index++)
         {
-            if (array[index].localeCompare(array[index+1], "de-DE") > 0) {
+            if (array[index].localeCompare(array[index+1], locales) > 0) {
                 let cache = array[index];
                 array[index] = array[index+1];
                 array[index+1] = cache;
